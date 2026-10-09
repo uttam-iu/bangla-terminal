@@ -32,6 +32,40 @@ function App() {
     opacity: 100,
     lineSpacing: 1.5
   });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [terminalTabs, setTerminalTabs] = useState([
+    { id: 'console', label: 'Console', theme: 'midnight' },
+    { id: 'network', label: 'Network', theme: 'forest' },
+    { id: 'system', label: 'System', theme: 'sunset' }
+  ]);
+  const [activeTabId, setActiveTabId] = useState('console');
+  const [terminalHeight, setTerminalHeight] = useState(82);
+  const [isResizing, setIsResizing] = useState(false);
+  const terminalPanelRef = useRef(null);
+
+  const createNewTab = () => {
+    const nextIndex = terminalTabs.length + 1;
+    const nextTab = {
+      id: `terminal-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      label: `Terminal ${nextIndex}`,
+      theme: 'neon'
+    };
+
+    setTerminalTabs(prev => [...prev, nextTab]);
+    setActiveTabId(nextTab.id);
+  };
+
+  const removeTab = (tabId) => {
+    setTerminalTabs(prev => {
+      if (prev.length === 1) return prev;
+
+      const nextTabs = prev.filter(tab => tab.id !== tabId);
+      const removedIndex = prev.findIndex(tab => tab.id === tabId);
+      const fallbackTabId = nextTabs[Math.max(0, removedIndex - 1)]?.id || nextTabs[0]?.id;
+      setActiveTabId(fallbackTabId);
+      return nextTabs;
+    });
+  };
 
   const terminalThemes = {
     midnight: {
@@ -76,7 +110,26 @@ function App() {
     }
   };
 
-  const theme = terminalThemes[terminalSettings.theme];
+  const activeTab = terminalTabs.find((tab) => tab.id === activeTabId) || terminalTabs[0];
+  const theme = terminalThemes[activeTab?.theme || terminalSettings.theme];
+
+  useEffect(() => {
+    const handleMouseMove = (event) => {
+      if (!isResizing) return;
+      const nextHeight = Math.min(Math.max(((window.innerHeight - event.clientY) / window.innerHeight) * 100, 35), 88);
+      setTerminalHeight(nextHeight);
+    };
+
+    const handleMouseUp = () => setIsResizing(false);
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -510,111 +563,15 @@ function App() {
 
   return (
     <div className={`min-h-screen p-4 md:p-8 flex flex-col justify-between items-center ${theme.shell}`} onClick={focusInput}>
-      {/* <div className="w-full max-w-5xl mb-4 rounded-xl border border-gray-800/50 bg-[#0d1527]/60 p-3 shadow-lg backdrop-blur-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2 text-sm font-mono text-gray-300">
-            <Terminal className="w-4 h-4 text-sky-400" />
-            <span>Terminal Settings</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-gray-300">
-            <label className="flex items-center gap-2">
-              Theme
-              <select
-                value={terminalSettings.theme}
-                onChange={(e) => setTerminalSettings(prev => ({ ...prev, theme: e.target.value }))}
-                className="rounded border border-gray-700 bg-[#0a0f1d] px-2 py-1 text-gray-200 outline-none"
-              >
-                <option value="midnight">Midnight</option>
-                <option value="forest">Forest</option>
-                <option value="sunset">Sunset</option>
-                <option value="neon">Neon</option>
-              </select>
-            </label>
-
-            <label className="flex items-center gap-2">
-              Font
-              <input
-                type="range"
-                min="12"
-                max="20"
-                step="1"
-                value={terminalSettings.fontSize}
-                onChange={(e) => setTerminalSettings(prev => ({ ...prev, fontSize: Number(e.target.value) }))}
-                className="accent-sky-400"
-              />
-              <span>{terminalSettings.fontSize}px</span>
-            </label>
-
-            <label className="flex items-center gap-2">
-              Opacity
-              <input
-                type="range"
-                min="70"
-                max="100"
-                step="5"
-                value={terminalSettings.opacity}
-                onChange={(e) => setTerminalSettings(prev => ({ ...prev, opacity: Number(e.target.value) }))}
-                className="accent-violet-400"
-              />
-              <span>{terminalSettings.opacity}%</span>
-            </label>
-
-            <label className="flex items-center gap-2">
-              Line Height
-              <input
-                type="range"
-                min="1"
-                max="2"
-                step="0.1"
-                value={terminalSettings.lineSpacing}
-                onChange={(e) => setTerminalSettings(prev => ({ ...prev, lineSpacing: Number(e.target.value) }))}
-                className="accent-amber-400"
-              />
-              <span>{terminalSettings.lineSpacing.toFixed(1)}</span>
-            </label>
-
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={terminalSettings.cursorBlink}
-                onChange={(e) => setTerminalSettings(prev => ({ ...prev, cursorBlink: e.target.checked }))}
-                className="accent-emerald-400"
-              />
-              Cursor blink
-            </label>
-
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={terminalSettings.showHeader}
-                onChange={(e) => setTerminalSettings(prev => ({ ...prev, showHeader: e.target.checked }))}
-                className="accent-emerald-400"
-              />
-              Header
-            </label>
-
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={terminalSettings.compactMode}
-                onChange={(e) => setTerminalSettings(prev => ({ ...prev, compactMode: e.target.checked }))}
-                className="accent-emerald-400"
-              />
-              Compact
-            </label>
-          </div>
-        </div>
-      </div> */}
-
       <div
-        className={`w-full max-w-5xl ${theme.panel} rounded-xl border shadow-2xl flex flex-col h-[82vh] overflow-hidden`}
-        style={{ opacity: terminalSettings.opacity / 100 }}
+        ref={terminalPanelRef}
+        className={`w-full max-w-5xl ${theme.panel} rounded-xl border shadow-2xl flex flex-col overflow-hidden`}
+        style={{ opacity: terminalSettings.opacity / 100, height: `${terminalHeight}vh` }}
       >
         
         {/* Terminal Header */}
         {terminalSettings.showHeader && (
-          <div className={`${theme.header} px-4 py-3 border-b flex items-center justify-between select-none`}>
+          <div className={`${theme.header} px-4 py-2 border-b flex items-center justify-between select-none relative`}>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 rounded-full bg-rose-500"></div>
               <div className="w-3 h-3 rounded-full bg-amber-500"></div>
@@ -623,8 +580,146 @@ function App() {
                 <Terminal className={`w-3.5 h-3.5 ${theme.prompt}`} /> bangla-interactive-terminal.sh
               </span>
             </div>
-            <div className={`flex items-center gap-4 text-xs ${theme.muted} font-mono`}>
-              <span className={`hidden sm:inline ${theme.accent} px-2 py-0.5 rounded`}>ENG Input → BN Response</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 rounded border border-gray-700 bg-[#09111d]/80 p-1 text-[10px] font-mono text-gray-300">
+                {terminalTabs.map((tab) => (
+                  <div key={tab.id} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setActiveTabId(tab.id); }}
+                      className={`px-2 py-1 rounded transition-colors ${activeTabId === tab.id ? 'bg-sky-500 text-slate-950' : 'text-gray-300 hover:bg-gray-800'}`}
+                    >
+                      {tab.label}
+                    </button>
+                    {terminalTabs.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeTab(tab.id); }}
+                        className="text-[10px] text-gray-400 hover:text-rose-400"
+                        aria-label={`Delete ${tab.label}`}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); createNewTab(); }}
+                  className="px-2 py-1 rounded border border-dashed border-sky-500/60 text-sky-300 hover:bg-sky-500/10"
+                  title="Add terminal tab"
+                >
+                  +
+                </button>
+              </div>
+
+              <span className={`hidden sm:inline ${theme.accent} px-2 py-0.5 rounded text-[10px] ${theme.muted} font-mono`}>ENG → BN</span>
+
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIsSettingsOpen(prev => !prev); }}
+                  className="px-2 py-1 rounded border border-gray-700 bg-[#0a0f1d]/80 hover:bg-gray-800 transition-colors"
+                  title="Terminal settings"
+                >
+                  ⚙
+                </button>
+
+                {isSettingsOpen && (
+                  <div className="absolute right-0 top-full mt-2 z-10 w-[320px] rounded border border-gray-700 bg-[#0a0f1d]/95 p-2 shadow-xl backdrop-blur-sm">
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <label className="flex items-center justify-between gap-2">
+                        <span>Theme</span>
+                        <select
+                          value={activeTab?.theme || terminalSettings.theme}
+                          onChange={(e) => {
+                            const nextTheme = e.target.value;
+                            setTerminalSettings(prev => ({ ...prev, theme: nextTheme }));
+                            setTerminalTabs(prevTabs => prevTabs.map((tab) => tab.id === activeTabId ? { ...tab, theme: nextTheme } : tab));
+                          }}
+                          className="w-20 rounded border border-gray-700 bg-[#111827] px-1 py-0.5 text-[11px] outline-none"
+                        >
+                          <option value="midnight">Mid</option>
+                          <option value="forest">Forest</option>
+                          <option value="sunset">Sunset</option>
+                          <option value="neon">Neon</option>
+                        </select>
+                      </label>
+
+                      <label className="flex items-center justify-between gap-2">
+                        <span>Font</span>
+                        <span>{terminalSettings.fontSize}px</span>
+                      </label>
+
+                      <div className="col-span-2">
+                        <input
+                          type="range"
+                          min="12"
+                          max="20"
+                          step="1"
+                          value={terminalSettings.fontSize}
+                          onChange={(e) => setTerminalSettings(prev => ({ ...prev, fontSize: Number(e.target.value) }))}
+                          className="w-full accent-sky-400"
+                        />
+                      </div>
+
+                      <label className="flex items-center justify-between gap-2">
+                        <span>Opacity</span>
+                        <span>{terminalSettings.opacity}%</span>
+                      </label>
+
+                      <label className="flex items-center justify-between gap-2">
+                        <span>Line</span>
+                        <span>{terminalSettings.lineSpacing.toFixed(1)}</span>
+                      </label>
+
+                      <div className="col-span-2">
+                        <input
+                          type="range"
+                          min="70"
+                          max="100"
+                          step="5"
+                          value={terminalSettings.opacity}
+                          onChange={(e) => setTerminalSettings(prev => ({ ...prev, opacity: Number(e.target.value) }))}
+                          className="w-full accent-violet-400"
+                        />
+                      </div>
+
+                      <div className="col-span-2">
+                        <input
+                          type="range"
+                          min="1"
+                          max="2"
+                          step="0.1"
+                          value={terminalSettings.lineSpacing}
+                          onChange={(e) => setTerminalSettings(prev => ({ ...prev, lineSpacing: Number(e.target.value) }))}
+                          className="w-full accent-amber-400"
+                        />
+                      </div>
+
+                      <label className="flex items-center gap-2 text-[11px]">
+                        <input
+                          type="checkbox"
+                          checked={terminalSettings.compactMode}
+                          onChange={(e) => setTerminalSettings(prev => ({ ...prev, compactMode: e.target.checked }))}
+                          className="accent-emerald-400"
+                        />
+                        Compact
+                      </label>
+
+                      <label className="flex items-center gap-2 text-[11px]">
+                        <input
+                          type="checkbox"
+                          checked={terminalSettings.cursorBlink}
+                          onChange={(e) => setTerminalSettings(prev => ({ ...prev, cursorBlink: e.target.checked }))}
+                          className="accent-emerald-400"
+                        />
+                        Blink
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button 
                 onClick={(e) => { e.stopPropagation(); setHistory([]); }}
                 className="hover:text-rose-400 transition-colors p-1 rounded hover:bg-gray-800/40"
@@ -633,6 +728,12 @@ function App() {
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
+          </div>
+        )}
+
+        {activeTabId !== 'console' && (
+          <div className={`px-4 py-2 border-b ${theme.header} text-[11px] font-mono ${theme.muted}`}>
+            <span className="uppercase tracking-wide">{activeTab?.label || 'Console'} mode active</span>
           </div>
         )}
 
@@ -680,6 +781,12 @@ function App() {
             )}
           </div>
         </div>
+
+        <div
+          onMouseDown={(e) => { e.preventDefault(); setIsResizing(true); }}
+          className="h-2 w-full cursor-row-resize bg-gradient-to-r from-transparent via-sky-500/40 to-transparent"
+          title="Resize terminal"
+        />
       </div>
 
       {/* Terminal Info/Footer Quick Guide */}
